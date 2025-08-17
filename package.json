@@ -1,0 +1,31 @@
+
+{
+  "name": "jawslayer-song-of-the-day",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "start": "node server/index.js",
+    "register:commands": "node client/register-commands.js",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "test": "node -e \"console.log('no tests yet')\""
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^3.3.2",
+    "pino": "^9.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "eslint": "^9.10.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.3.3"
+  }
+}
