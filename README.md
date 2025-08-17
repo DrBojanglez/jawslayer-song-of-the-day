@@ -1,6 +1,3 @@
-Here’s a clean, copy-and-paste-ready README tailored for your project—no fluff, no AI talk, just the essentials explained clearly:
-
----
 
 # JawSlayer SongOfTheDay
 
@@ -142,6 +139,3 @@ npm run register:commands
 npm i -g pm2 && pm2 start server/index.js --name songofday && pm2 save && pm2 startup
 ```
 
----
-
-Paste this into your `README.md` and you're good to go. Let me know if you'd like a deployment script or other enhancements!
