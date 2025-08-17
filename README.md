@@ -94,7 +94,7 @@ npm -v   # Should show matching version
 ### 5.1 Clone or create project:
 
 ```bash
-git clone https://github.com/<your-username>/jawslayer-song-of-the-day.git
+git clone https://github.com/DrBojanglez/jawslayer-song-of-the-day.git
 cd jawslayer-song-of-the-day
 ```
 
