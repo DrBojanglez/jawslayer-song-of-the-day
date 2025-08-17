@@ -1,95 +1,147 @@
-
-# JawSlayer SongOfTheDay
-
-A tiny Discord bot that posts a **Song of the Day** from your **public Spotify playlist** every day at **6:00 AM Liverpool time** (default). Also includes `/songtoday` to trigger a post on demand.
-
-## Features
-
-- ⏰ **Schedules** at your chosen cron (default `0 6 * * *`, Europe/London)
-- 🧮 Deterministic or Sequential picks (`PICKER_MODE=hash|sequential`)
-- 🧩 **Modular** code: swap picker, message, or schedule without touching everything
-- 🧵 Multi-channel: post to multiple channels with `DISCORD_CHANNEL_IDS`
-- 🔐 No user login: uses Spotify **Client Credentials** for public playlists
-- 🪵 Structured logging
+Here’s a clean, copy-and-paste-ready README tailored for your project—no fluff, no AI talk, just the essentials explained clearly:
 
 ---
 
-## Quick start
+# JawSlayer SongOfTheDay
 
-1. **Install deps**
+**What it does**
+Every day at 06:00 Europe/London time (automatically adjusts for BST/GMT), this bot posts a "Song of the Day" from your public Spotify playlist into specified Discord channel(s). You can also trigger it manually with the `/songtoday` command.
+
+---
+
+## 1. Architecture Overview
+
+* **Spotify Integration**
+  Uses the [Client Credentials flow](https://developer.spotify.com/documentation/general/guides/authorization/client-credentials/) to fetch playlist data from a public Spotify playlist.
+
+* **Song Picker**
+
+  * **Hash mode**: Deterministically selects a song based on the current UK date.
+  * **Sequential mode**: Rotates through playlist tracks, saving state to disk.
+
+* **Scheduler**
+  Runs daily using `node-cron`, respecting `Europe/London` timezone for automatic BST support.
+
+* **Discord Integration**
+  Built with `discord.js`. Handles both scheduled and slash-command-triggered posts.
+  `/songtoday` posts the current song on demand.
+
+---
+
+## 2. Requirements
+
+* Node.js ≥ 20
+* Discord Bot (with token); invited to your server with **Send Messages** and **Embed Links** permissions
+* Spotify Developer app (Client ID and Secret)
+* A **public** Spotify playlist (private playlists won’t work with Client Credentials)
+
+---
+
+## 3. Configuration
+
+Copy `.env.example` to `.env` and fill out:
+
+| Environment Variable    | Purpose                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `DISCORD_TOKEN`         | Bot token from Discord Developer Portal                                    |
+| `DISCORD_GUILD_ID`      | Guild where `/songtoday` is registered                                     |
+| `DISCORD_CHANNEL_IDS`   | Comma-separated channel IDs where the bot will post                        |
+| `SPOTIFY_CLIENT_ID`     | Spotify Developer app client ID                                            |
+| `SPOTIFY_CLIENT_SECRET` | Spotify Developer app client secret                                        |
+| `SPOTIFY_PLAYLIST_ID`   | Spotify public playlist ID (from your playlist URL)                        |
+| `CRON_TZ`               | Timezone for scheduling (default: `Europe/London`)                         |
+| `CRON_EXPR`             | Cron expression for schedule (default: `0 6 * * *`)                        |
+| `PICKER_MODE`           | `hash` (default) or `sequential`                                           |
+| `STATE_FILE`            | File path for sequential rotation state (default: `./state/rotation.json`) |
+| `LOG_LEVEL`             | `trace`, `debug`, `info`, etc.                                             |
+
+---
+
+## 4. Local Setup
+
+1. Install dependencies:
+
    ```bash
-   npm i
+   npm install
    ```
+2. Register slash command:
 
-2. **Create `.env`** (copy from `.env.example`) and fill in values.
-
-3. **Register commands** (guild-scoped for instant availability)
    ```bash
    npm run register:commands
    ```
+3. Start the bot:
 
-4. **Run the bot**
    ```bash
    npm run dev
    ```
 
-Invite the bot to your server with **Send Messages** and **Embed Links** permissions.
+Bot will connect and post at the scheduled time. Use `/songtoday` to test manually.
 
 ---
 
-## Configuration
+## 5. Deployment Options
 
-| Env var | Default | Description |
-|---|---|---|
-| `DISCORD_TOKEN` | – | Bot token |
-| `DISCORD_GUILD_ID` | – | Guild to register commands against |
-| `DISCORD_CHANNEL_IDS` | – | Comma-separated channel IDs to post into |
-| `SPOTIFY_CLIENT_ID` | – | Spotify app client id |
-| `SPOTIFY_CLIENT_SECRET` | – | Spotify app secret |
-| `SPOTIFY_PLAYLIST_ID` | – | Public playlist id |
-| `CRON_TZ` | `Europe/London` | Timezone for job |
-| `CRON_EXPR` | `0 6 * * *` | Cron (6:00 daily) |
-| `PICKER_MODE` | `hash` | `hash` (stable per day) or `sequential` (rotates, persisted) |
-| `STATE_FILE` | `./state/rotation.json` | Used in sequential mode |
-| `LOG_LEVEL` | `info` | `trace`..`error` |
+### A) systemd (Linux)
 
-### Change the time
-Update `CRON_EXPR` while keeping `CRON_TZ`. Example 9:30 daily:
+1. Configure the bot in a directory (e.g., `/opt/jawslayer-song-of-the-day`) and install dependencies with `npm ci --omit=dev`.
+2. Create `/etc/systemd/system/jawslayer.service` with appropriate `ExecStart`, working directory, and restart policy.
+3. Run:
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now jawslayer.service
+   ```
+4. To update:
+
+   ```bash
+   cd /opt/jawslayer...
+   git pull && npm ci --omit=dev
+   sudo systemctl restart jawslayer.service
+   ```
+
+### B) PM2
+
+```bash
+npm install -g pm2
+pm2 start server/index.js --name songofday
+pm2 save
+pm2 startup   # follow instructions to auto-start on reboot
 ```
-CRON_EXPR=30 9 * * *
-```
 
 ---
 
-## How it works
+### C) Docker / Docker Compose
 
-- `server/services/spotify.js` pulls your playlist across pages with a cached bearer token.
-- `server/services/songPicker.js` chooses a track using either deterministic hashing of the UK date (`hash`) or an on-disk pointer (`sequential`).
-- `server/services/poster.js` formats and posts the message (with artwork).
-- `server/scheduler.js` runs the job on the cron you specify (BST/GMT handled by `CRON_TZ`).
-- `server/bot.js` wires Discord client + `/songtoday`.
-
----
-
-## Docker
+Simply run:
 
 ```bash
 docker compose up --build -d
 ```
 
-> The `state/` folder is volume-mounted so sequential mode persists.
+State persists via the volume-mounted `state/` directory.
 
 ---
 
-## Troubleshooting
+## 6. Troubleshooting
 
-- **“No tracks found in playlist”**: Ensure the playlist is public and has items.
-- **Nothing posts at 6 AM**: Check `CRON_TZ`, bot permissions, and logs. Run `/songtoday` to test.
-- **Wrong channel**: Verify `DISCORD_CHANNEL_IDS` and that the bot can post there.
-- **Sequential mode doesn’t advance**: Delete `state/rotation.json` or ensure the container has the volume mounted.
+* **No tracks found**: Make sure the playlist is public and not empty.
+* **Commands don’t appear**: Re-run command registration, ensure correct `DISCORD_GUILD_ID`, and bot is in the guild.
+* **Posts not appearing**: Check permissions, logs, and that the scheduler is running.
+* **Invalid credentials**: Verify `.env` values and regenerate tokens if necessary.
 
 ---
 
-## License
+## 7. Quick Deploy (PM2 Example)
 
-MIT © You
+```bash
+git clone https://github.com/<your-username>/jawslayer-song-of-the-day.git
+cd jawslayer-song-of-the-day
+cp .env.example .env  # fill in
+npm ci --omit=dev
+npm run register:commands
+npm i -g pm2 && pm2 start server/index.js --name songofday && pm2 save && pm2 startup
+```
+
+---
+
+Paste this into your `README.md` and you're good to go. Let me know if you'd like a deployment script or other enhancements!
