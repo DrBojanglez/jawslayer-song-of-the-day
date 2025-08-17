@@ -1,178 +1,245 @@
-# JawSlayer SongOfTheDay
+# JawSlayer SongOfTheDay - Complete Walkthrough
 
-Post a daily “Song of the Day” from your public Spotify playlist to Discord, automatically at 06:00 Europe/London time (BST/GMT-aware), and also via `/songtoday` command.
-
----
-
-## 1. Overview & Integration
-
-**Discord Bot Setup**
-
-* Create a Discord Application & Bot in the [Developer Portal](https://discord.com/developers/docs/quick-start).
-* Invite it to your server with permissions: *View Channel*, *Send Messages*, *Embed Links*.
-* Use the provided `client/register-commands.js` to register the `/songtoday` command for your server (guild scope for instant availability).
-
-**How to post**
-
-* Bot will automatically post every day at the scheduled time.
-* Manually trigger with `/songtoday`.
+This guide walks you step-by-step through creating, configuring, and hosting your Discord bot that posts a daily song from your Spotify playlist. No prior knowledge assumed—integration explained from the ground up.
 
 ---
 
-## 2. Requirements
+## 1. What You’ll Need
 
-* Node.js v20+ (or via Docker).
-* `discord.js`, `node-cron`, `dotenv`, etc. installed via `npm install`.
-* **Discord Bot Token** and **Spotify App credentials** (Client ID + Secret) with a **public** Spotify playlist.
-* Confirmed `.env` configuration (see below).
+### Hardware & OS
 
----
+* A computer or server running **Ubuntu 22.04 LTS** or **Ubuntu 24.04 LTS** (common, stable Linux versions). (\[DigitalOcean install guide]\([DigitalOcean][1]))
+* At least **4 GB RAM**, **20 GB disk space**, and internet access. Node.js runs fine on modest cloud instances.
 
-## 3. Configuration (`.env`)
+### Software Requirements
 
-Copy `.env.example` → `.env` and fill in:
-
-| Variable                                      | Function                                                 |
-| --------------------------------------------- | -------------------------------------------------------- |
-| `DISCORD_TOKEN`                               | Bot token from Developer Portal                          |
-| `DISCORD_GUILD_ID`                            | Discord server ID (for registering slash commands)       |
-| `DISCORD_CHANNEL_IDS`                         | Channels to post into (comma-separated)                  |
-| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify API credentials                                  |
-| `SPOTIFY_PLAYLIST_ID`                         | ID of your public Spotify playlist                       |
-| `CRON_TZ`                                     | Timezone (default `Europe/London`)                       |
-| `CRON_EXPR`                                   | Cron schedule (default `0 6 * * *`)                      |
-| `PICKER_MODE`                                 | `hash` (deterministic) or `sequential`                   |
-| `STATE_FILE`                                  | Storage file for sequential mode (`state/rotation.json`) |
-| `LOG_LEVEL`                                   | Logging level (e.g., `info`, `debug`)                    |
+* **Node.js v20 LTS** (JavaScript runtime).
+* **npm** (Node package manager).
+* **Git**, **curl**, **build-essential** (for setting up the environment).
+* Discord developer account and Spotify developer account.
+* Access to your Spotify playlist (must be **public**).
 
 ---
 
-## 4. Local Usage
+## 2. Install Prerequisites on Ubuntu
+
+### 2.1 Update system and install basics:
+
+```bash
+sudo apt update
+sudo apt install -y curl ca-certificates gnupg build-essential git
+```
+
+### 2.2 Install Node.js v20 (preferred production method via NodeSource):
+
+```bash
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+  | sudo tee /etc/apt/sources.list.d/nodesource.list
+sudo apt update
+sudo apt install -y nodejs
+```
+
+This provides up-to-date, supported Node.js binaries. (\[DigitalOcean guide]\([DigitalOcean][2]))
+
+Alternatively, use **NVM**, especially if you plan to manage multiple Node versions:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh \
+  | bash
+source ~/.bashrc
+nvm install 20
+```
+
+(\[AskUbuntu guide]\([Ask Ubuntu][3]))
+
+Verify:
+
+```bash
+node -v  # Should show v20.x
+npm -v   # Should show matching version
+```
+
+---
+
+## 3. Set Up Discord Bot
+
+### 3.1 Create the Bot Application:
+
+1. Visit the **Discord Developer Portal**.
+2. Click **New Application**, give it a name.
+3. Navigate to Bot → click **Add Bot**, confirm.
+4. Copy the **Bot Token** (we’ll use it later).
+
+### 3.2 Invite the bot to your server:
+
+1. Go to OAuth2 → URL Generator.
+2. Under Scopes: select **bot**, and if using slash commands, **applications.commands**.
+3. Under Bot Permissions: choose *Send Messages*, *Embed Links*.
+4. Copy the generated URL, open it in your browser, and invite the bot to your server.
+
+---
+
+## 4. Set Up Spotify Credentials and Playlist
+
+1. Go to the \[Spotify Developer Dashboard] and create a new app.
+2. Copy the **Client ID** and **Client Secret**.
+3. Ensure your Spotify playlist is **public**, or the bot can’t access it.
+
+---
+
+## 5. Project Setup
+
+### 5.1 Clone or create project:
+
+```bash
+git clone https://github.com/<your-username>/jawslayer-song-of-the-day.git
+cd jawslayer-song-of-the-day
+```
+
+### 5.2 Install dependencies:
 
 ```bash
 npm install
+```
+
+### 5.3 Configure environment:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and populate:
+
+* `DISCORD_TOKEN` with your bot token.
+* `DISCORD_GUILD_ID` with your server’s ID.
+* `DISCORD_CHANNEL_IDS` with IDs of channels where bot should post.
+* `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, and `SPOTIFY_PLAYLIST_ID`.
+* Leave defaults for schedule/timezone unless you want to change them.
+
+---
+
+## 6. Register Slash Command `/songtoday`
+
+Run:
+
+```bash
 npm run register:commands
+```
+
+This registers your slash command **for your server only** (guild-scoped), so updates appear instantly with no delay. (\[Discord.js guild commands]\([Discord.js Guide][4], [Deno][5], [Medium][6]))
+
+---
+
+### 7. Run the Bot Locally for the First Time
+
+```bash
 npm run dev
 ```
 
-* Slash commands should appear instantly (guild-scoped).
-* Use `/songtoday` to test.
-* Check console logs for runtime errors or scheduling issues.
+Check terminal for successful login and scheduled job setup. Use `/songtoday` in Discord to trigger a manual post and verify everything works.
 
 ---
 
-## 5. Deployment Options
+## 8. Deploy the Bot to a Server (Production)
 
-### A) systemd (Ubuntu/Debian VPS)
+Choose one method below:
 
-Reliable and auto-restarts on crash or reboot.
+### Option A: systemd (recommended for stable server runs)
 
-1. Place code in `/opt/jawslayer` (or appropriate path), install deps via `npm ci --omit=dev`.
-2. Create a service at `/etc/systemd/system/jawslayer.service`:
+Create a systemd service:
 
-   ```ini
-   [Unit]
-   Description=JawSlayer SongOfTheDay Bot
-   After=network.target
+```ini
+[Unit]
+Description=JawSlayer SongOfTheDay Bot
+After=network.target
 
-   [Service]
-   User=youruser
-   WorkingDirectory=/opt/jawslayer
-   ExecStart=/usr/bin/node server/index.js
-   Restart=on-failure
+[Service]
+User=youruser
+WorkingDirectory=/home/youruser/jawslayer-song-of-the-day
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
 
-   [Install]
-   WantedBy=multi-user.target
-   ```
-3. Enable and start:
+[Install]
+WantedBy=multi-user.target
+```
 
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now jawslayer
-   sudo systemctl status jawslayer
-   ```
-4. Logs: `journalctl -u jawslayer -f`.
+```bash
+sudo tee /etc/systemd/system/jawslayer.service > /dev/null <<EOF
+[Unit]
+Description=JawSlayer SongOfTheDay Bot
+After=network.target
 
-*(Based on systemd examples for Discord bots and service management.)* ([Gist][1])
+[Service]
+User=$USER
+WorkingDirectory=$(pwd)
+ExecStart=$(which node) server/index.js
+Restart=on-failure
 
----
+[Install]
+WantedBy=multi-user.target
+EOF
 
-### B) PM2 (Process Manager)
+sudo systemctl daemon-reload
+sudo systemctl enable --now jawslayer
+sudo journalctl -f -u jawslayer
+```
 
-1. Install PM2:
-
-   ```bash
-   npm install -g pm2
-   ```
-2. Start bot via PM2:
-
-   ```bash
-   pm2 start server/index.js --name jawslayer
-   ```
-3. Persist setup on reboot:
-
-   ```bash
-   pm2 save
-   pm2 startup
-   ```
-4. Control bot:
-
-   * `pm2 list` — view status
-   * `pm2 logs jawslayer` — tail logs
-   * `pm2 restart jawslayer` — restart
-   * `pm2 stop jawslayer` — stop
-
-*(Follows PM2 Quick Start and Discord bot usage guidance.)* ([Discord.js Guide][2], [Medium][3], [Medium][4])
+Solid, reliable deployment. (\[systemd best practices]\([Deno][5], [Discord.js Guide][7], [Vultr Docs][8]))
 
 ---
 
-### C) Docker / Docker Compose
+### Option B: PM2 (process manager for Node)
 
-* Run with:
+```bash
+sudo npm install -g pm2
+pm2 start server/index.js --name jawslayer
+pm2 save
+pm2 startup
+pm2 logs jawslayer
+```
 
-  ```bash
-  docker compose up --build -d
-  ```
-* The `state/` folder is volume-mounted to preserve rotation state.
-
-Many community users deploy bots via Docker to ensure uptime—even on low-cost hardware. ([Gist][1], [Reddit][5])
-
----
-
-## 6. After Creating the Server
-
-1. Set up `.env`, install dependencies, and test locally.
-2. Register slash commands with `npm run register:commands`.
-3. Choose a deployment method:
-
-   * *For VPS/systemd or PM2*: clone repo, install, and start as above.
-   * *For Docker*: build and run with Compose.
-4. Ensure bot has permissions and can post in channels.
-5. Monitor logs and test manually with `/songtoday`.
+Easy to manage restart, logs, and startup behavior.
 
 ---
 
-## 7. Troubleshooting
+### Option C: Docker (containerized)
 
-| Issue                 | Fix                                                                         |
-| --------------------- | --------------------------------------------------------------------------- |
-| No tracks found       | Verify playlist is public and not empty.                                    |
-| Slash command missing | Re-run registration, check `DISCORD_GUILD_ID`, ensure bot is in your guild. |
-| Posts not appearing   | Check bot permissions, logs, and that scheduler is running.                 |
-| Invalid credentials   | Confirm `.env` values and regenerate tokens if needed.                      |
+```bash
+docker compose up --build -d
+```
+
+This container runs your bot and preserves state across restarts via volume. Great for cloud deployments.
 
 ---
 
-### Key References
+## 9. Ongoing Management
 
-* \[Systemd service setup for bots]\([Better Stack][6], [Discord.js Guide][2], [YouTube][7], [Gist][1])
-* \[PM2 process management guide]\([Discord.js Guide][2])
-* \[Reddit: Docker for bot uptime]\([Reddit][5])
+* After changes: `git pull && npm ci --omit=dev && sudo systemctl restart jawslayer` (systemd) or `pm2 restart jawslayer`
+* Logs:
 
-[1]: https://gist.github.com/comhad/de830d6d1b7ae1f165b925492e79eac8?utm_source=chatgpt.com "How to setup a systemctl service for running your bot on ..."
-[2]: https://discordjs.guide/improving-dev-environment/pm2?utm_source=chatgpt.com "Managing your bot process with PM2"
-[3]: https://medium.com/%40a_farag/deploying-a-node-js-project-with-pm2-in-production-mode-fc0e794dc4aa?utm_source=chatgpt.com "Deploying a Node.js Project with PM2 in Production Mode"
-[4]: https://medium.com/%40ayushnandanwar003/deploying-node-js-applications-using-pm2-a-detailed-guide-b8b6d55dfc88?utm_source=chatgpt.com "Deploying Node.js Applications Using PM2: A Detailed Guide"
-[5]: https://www.reddit.com/r/Discord_Bots/comments/1hk8i5k/how_are_bots_usually_hosted/?utm_source=chatgpt.com "How are bots usually hosted? : r/Discord_Bots"
-[6]: https://betterstack.com/community/guides/scaling-nodejs/pm2-guide/?utm_source=chatgpt.com "Running Node.js Apps with PM2 (Complete Guide)"
-[7]: https://www.youtube.com/watch?v=qv24S2L1N0k&utm_source=chatgpt.com "How To Build And Deploy Your First Discord Bot"
+  * systemd: `sudo journalctl -u jawslayer -f`
+  * PM2: `pm2 logs jawslayer`
+
+---
+
+## 10. Troubleshooting Tips
+
+| Problem                    | Solution                                                         |
+| -------------------------- | ---------------------------------------------------------------- |
+| Slash command doesn’t show | Ensure `DISCORD_GUILD_ID` is correct and run `register:commands` |
+| No song posted             | Check playlist is public, bot has permissions, and schedule logs |
+| Spotify/Bot login fails    | Double-check tokens in `.env` and server logs                    |
+
+---
+
+
+[1]: https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-ubuntu-22-04?utm_source=chatgpt.com "How to Install Node.js on Ubuntu (Step-by-Step Guide)"
+[2]: https://www.digitalocean.com/community/tutorials/how-to-install-node-js-on-ubuntu-20-04?utm_source=chatgpt.com "How to Install Node.js on Ubuntu"
+[3]: https://askubuntu.com/questions/1502744/how-to-install-node-js-latest-version-on-ubuntu-22-04?utm_source=chatgpt.com "How to install Node JS latest version on Ubuntu 22.04?"
+[4]: https://discordjs.guide/creating-your-bot/command-deployment?utm_source=chatgpt.com "Registering slash commands"
+[5]: https://docs.deno.com/deploy/tutorials/discord-slash/?utm_source=chatgpt.com "Discord Slash Command"
+[6]: https://medium.com/%40nsidana123/before-the-birth-of-of-node-js-15ee9262110c?utm_source=chatgpt.com "How To Install Node.js 20 LTS on Ubuntu 22.04|20.04|18.04"
+[7]: https://discordjs.guide/creating-your-bot/slash-commands?utm_source=chatgpt.com "Creating slash commands"
+[8]: https://docs.vultr.com/installing-node-js-and-express-on-ubuntu-20-04?utm_source=chatgpt.com "Installing Node.js and Express on Ubuntu 20.04"
